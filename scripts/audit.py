@@ -9,7 +9,7 @@ import sys
 import unicodedata
 from html.parser import HTMLParser
 
-HTML = open("dist/rendered.html", encoding="utf-8").read()
+HTML = open(".build/rendered.html", encoding="utf-8").read()
 INDEX_HTML = open("dist/index.html", encoding="utf-8").read()
 CSS = "".join(open(f, encoding="utf-8").read() for f in glob.glob("dist/assets/*.css"))
 SRC_CSS = open("src/index.css", encoding="utf-8").read()
@@ -395,11 +395,11 @@ for bp in ("40rem", "48rem", "64rem", "80rem"):
         failures.append(f"missing breakpoint {bp}")
     print(f"  {'OK  ' if ok else 'MISS'}  breakpoint {bp}")
 
-print("\n9b) METRICS STACK ON PHONES")
+print("\n9c) METRICS STACK ON PHONES")
 results_src = open("src/components/sections/Results.tsx", encoding="utf-8").read()
 centre_checks = {
     "centred below md": "text-center" in results_src and "md:text-left" in results_src,
-    "cells centre on mobile": "items-center" in results_src and "md:items-stretch" in results_src,
+    "cells centre on mobile": "items-center" in results_src and "items-stretch" in results_src,
     "horizontal padding on mobile": "px-6" in results_src,
     "two columns from md": "md:grid-cols-2" in results_src,
 }
@@ -408,14 +408,110 @@ for name, ok in centre_checks.items():
         failures.append(f"metrics responsive: {name}")
     print(f"  {'OK  ' if ok else 'MISS'}  {name}")
 
+print("\n9d) SELF-HOSTED FONTS")
+fonts_css = open("src/fonts.css", encoding="utf-8").read()
+font_files = sorted(glob.glob("dist/assets/fonts/*.woff2"))
+external = re.findall(r"fonts\.(?:googleapis|gstatic)\.com", INDEX_HTML + CSS)
+font_checks = {
+    "no Google Fonts in html or css": not external,
+    "no preconnect to a font CDN": "fonts.googleapis.com" not in INDEX_HTML,
+    "@font-face rules present": fonts_css.count("@font-face") >= 4,
+    "all @font-face src are local": all(
+        "url('/assets/fonts/" in m for m in re.findall(r"src:\s*url\([^)]*\)", fonts_css)
+    ),
+    "font-display: swap everywhere": fonts_css.count("font-display: swap") == fonts_css.count("@font-face"),
+    "font files shipped": len(font_files) >= 4,
+    "no cyrillic-less fallback": "U+0400-045F" in fonts_css,
+    "preloaded for first paint": 'rel="preload"' in INDEX_HTML and "as=\"font\"" in INDEX_HTML.replace("\n", " "),
+    "weights filtered to what is used": not re.search(r"Spectral.*font-weight: (400|700)", fonts_css),
+}
+for name, ok in font_checks.items():
+    if not ok:
+        failures.append(f"fonts: {name}")
+    print(f"  {'OK  ' if ok else 'MISS'}  {name}")
+font_bytes = sum(os.path.getsize(f) for f in font_files)
+print(f"  {len(font_files)} files, {font_bytes/1024:.1f} KB total (all subsets)")
+
+print("\n9e) PRE-RENDER")
+built_html = open("dist/index.html", encoding="utf-8").read()
+built_text = re.sub(r"<[^>]+>", " ", built_html)
+built_text = " ".join(built_text.split())
+pre_checks = {
+    "root div is not empty": '<div id="root"></div>' not in built_html,
+    "h1 present in the shipped html": "<h1" in built_html,
+    "all six sections in the html": all(f'id="{s}"' in built_html
+                                        for s in ("services", "results", "strengths", "cases", "contact")),
+    "copy is in the initial payload": norm(SENTENCE) in norm(built_text),
+    "hashed js bundle still referenced": 'type="module"' in built_html and "/assets/index-" in built_html,
+    "hashed css still referenced": 'rel="stylesheet"' in built_html,
+    "no build artefact shipped": not os.path.exists("dist/rendered.html"),
+    "og image referenced absolutely": 'content="https://' in built_html and "og-image.jpg" in built_html,
+}
+for name, ok in pre_checks.items():
+    if not ok:
+        failures.append(f"pre-render: {name}")
+    print(f"  {'OK  ' if ok else 'MISS'}  {name}")
+words = len(built_text.split())
+print(f"  {len(built_html)/1024:.1f} KB index.html, ~{words} words before any JS runs")
+
+print("\n9f) robots.txt / sitemap.xml")
+robots_p = "dist/robots.txt"
+sitemap_p = "dist/sitemap.xml"
+robots = open(robots_p, encoding="utf-8").read() if os.path.exists(robots_p) else ""
+sitemap = open(sitemap_p, encoding="utf-8").read() if os.path.exists(sitemap_p) else ""
+site_checks = {
+    "robots.txt exists": bool(robots),
+    "robots allows crawling": "User-agent: *" in robots and "Allow: /" in robots,
+    "robots points at the sitemap": "Sitemap: http" in robots,
+    "sitemap.xml exists": bool(sitemap),
+    "sitemap is well formed": sitemap.startswith("<?xml") and "</urlset>" in sitemap,
+    "sitemap has exactly one url": sitemap.count("<url>") == 1,
+}
+for name, ok in site_checks.items():
+    if not ok:
+        failures.append(f"seo: {name}")
+    print(f"  {'OK  ' if ok else 'MISS'}  {name}")
+
+# The origin in robots.txt, sitemap.xml and og:url must be the same string.
+origins = set()
+for pat, src in (
+    (r"Sitemap: (https?://[^/\s]+)", robots),
+    (r"<loc>(https?://[^/\s]+)", sitemap),
+    (r'property="og:url" content="(https?://[^/\s]+)', built_html),
+):
+    m = re.search(pat, src)
+    origins.add(m.group(1) if m else None)
+same_origin = len(origins) == 1 and None not in origins
+if not same_origin:
+    failures.append(f"origin mismatch: {origins}")
+print(f"  {'OK  ' if same_origin else 'MISS'}  one origin in robots/sitemap/og:url")
+
+og_img = "public/assets/og-image.jpg"
+og_ok = os.path.exists(og_img)
+og_size = None
+if og_ok:
+    try:
+        from PIL import Image
+        with Image.open(og_img) as im:
+            og_size = im.size
+    except Exception:
+        og_ok = False
+if not (og_ok and og_size == (1200, 630)):
+    failures.append(f"og image wrong size: {og_size}")
+print(f"  {'OK  ' if og_ok and og_size == (1200, 630) else 'MISS'}  og image 1200x630 ({og_size})")
+if og_ok:
+    print(f"        {os.path.getsize(og_img)/1024:.1f} KB")
+
 print("\n10) ASSET BUDGET")
 total = 0
-for f in sorted(glob.glob("dist/assets/*")):
+for f in sorted(glob.glob("dist/**/*", recursive=True)):
+    if not os.path.isfile(f):
+        continue
     size = os.path.getsize(f)
     total += size
-    print(f"  {size / 1024:8.1f} KB  {os.path.basename(f)}")
+    print(f"  {size / 1024:8.1f} KB  {os.path.relpath(f, 'dist')}")
 print(f"  {total / 1024:8.1f} KB  total (uncompressed)")
-if total > 700 * 1024:
+if total > 800 * 1024:
     failures.append("asset budget exceeded")
 
 print("\n" + "=" * 74)

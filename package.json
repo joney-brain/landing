@@ -5,10 +5,12 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
+    "build": "tsc -b && vite build && node scripts/render.mjs && node scripts/postbuild.mjs",
     "preview": "vite preview",
     "typecheck": "tsc -b --noEmit",
-    "verify": "npm run build && node scripts/render.mjs && python3 scripts/audit.py"
+    "og": "npm run build && node scripts/make-og.mjs",
+    "fonts": "python3 scripts/fetch-fonts.py",
+    "verify": "npm run build && python3 scripts/audit.py"
   },
   "dependencies": {
     "lucide-react": "^1.48.0",

@@ -1,8 +1,11 @@
 node_modules
 dist
 dist-ssr
+.build
 *.tsbuildinfo
 *.local
 .DS_Store
 .opencode/
 *.tsbuildinfo
+__pycache__/
+*.pyc
