@@ -1,5 +1,14 @@
 #!/usr/bin/env python3
-"""Audit the rendered DOM against the brief: copy, links, semantics, a11y, theming."""
+"""Audit the built site: copy, links, semantics, a11y, theming, deploy invariants.
+
+Standard library only, on purpose. This runs inside GitHub Actions, where a
+third-party import would be missing and would fail the deploy for a reason that
+has nothing to do with the site. An earlier version imported Pillow to read the
+OG image size and swallowed the ImportError, so the deploy failed with
+"og image wrong size: None" while the image was perfectly fine. Keep it to the
+standard library; if something genuinely needs a package, do it in
+scripts/make-og.mjs, which is a manual step and not part of the pipeline.
+"""
 from __future__ import annotations
 
 import glob
@@ -486,20 +495,46 @@ if not same_origin:
     failures.append(f"origin mismatch: {origins}")
 print(f"  {'OK  ' if same_origin else 'MISS'}  one origin in robots/sitemap/og:url")
 
-og_img = "public/assets/og-image.jpg"
-og_ok = os.path.exists(og_img)
-og_size = None
-if og_ok:
+def jpeg_size(path: str) -> tuple[int, int] | None:
+    """(width, height) straight from the JPEG headers.
+
+    The audit has to run inside GitHub Actions, where nothing but the standard
+    library is installed. An earlier version imported Pillow; the ImportError
+    was swallowed, the check reported the image as unverifiable, and the deploy
+    failed on a missing dependency rather than on anything wrong with the site.
+    """
     try:
-        from PIL import Image
-        with Image.open(og_img) as im:
-            og_size = im.size
-    except Exception:
-        og_ok = False
-if not (og_ok and og_size == (1200, 630)):
-    failures.append(f"og image wrong size: {og_size}")
-print(f"  {'OK  ' if og_ok and og_size == (1200, 630) else 'MISS'}  og image 1200x630 ({og_size})")
-if og_ok:
+        with open(path, "rb") as f:
+            if f.read(2) != b"\xff\xd8":            # SOI
+                return None
+            while True:
+                b = f.read(1)
+                if not b:
+                    return None
+                if b != b"\xff":                    # resync to a marker
+                    continue
+                marker = f.read(1)[0]
+                if marker in (0xD8, 0x01) or 0xD0 <= marker <= 0xD7:
+                    continue                        # no payload, no length
+                length = int.from_bytes(f.read(2), "big")
+                # SOF0..SOF15, minus DHT/JPG/DAC which share the range
+                if 0xC0 <= marker <= 0xCF and marker not in (0xC4, 0xC8, 0xCC):
+                    f.read(1)                      # sample precision
+                    h = int.from_bytes(f.read(2), "big")
+                    w = int.from_bytes(f.read(2), "big")
+                    return w, h
+                f.seek(length - 2, os.SEEK_CUR)    # skip this segment
+    except (OSError, IndexError, ValueError):
+        return None
+
+
+og_img = "public/assets/og-image.jpg"
+og_size = jpeg_size(og_img) if os.path.exists(og_img) else None
+og_ok = og_size == (1200, 630)
+if not og_ok:
+    failures.append(f"og image is not 1200x630: {og_size}")
+print(f"  {'OK  ' if og_ok else 'MISS'}  og image 1200x630 ({og_size})")
+if os.path.exists(og_img):
     print(f"        {os.path.getsize(og_img)/1024:.1f} KB")
 
 print("\n9g) DEPLOYMENT INVARIANTS")
