@@ -100,7 +100,13 @@ export function Hero() {
             <figure className="relative">
               <div className="overflow-hidden rounded-2xl border border-border bg-muted shadow-card">
                 <img
-                  src="/assets/portrait-hero.webp"
+                  // Document-relative on purpose. An imported asset gets an
+                  // absolute /assets/... url from the SSR build but a relative
+                  // one from the client build, so the pre-render and the
+                  // hydrated tree would disagree. A plain relative path is
+                  // byte-identical in both and resolves correctly at a domain
+                  // root and under a Pages subpath. Preloaded in index.html.
+                  src="assets/portrait-hero.webp"
                   alt="Евгений Колесников, главный редактор техносайта Городских сервисов Яндекса"
                   width={819}
                   height={1024}

@@ -9,3 +9,4 @@ dist-ssr
 *.tsbuildinfo
 __pycache__/
 *.pyc
+dist-test

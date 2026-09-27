@@ -502,6 +502,82 @@ print(f"  {'OK  ' if og_ok and og_size == (1200, 630) else 'MISS'}  og image 120
 if og_ok:
     print(f"        {os.path.getsize(og_img)/1024:.1f} KB")
 
+print("\n9g) DEPLOYMENT INVARIANTS")
+# The site is served by GitHub Pages, either at a domain root or, until DNS is
+# pointed at the repo, under https://<login>.github.io/<repo>/. The build uses a
+# relative base so both work, which only holds if nothing in the output is
+# pinned to an absolute path. Every local reference must therefore resolve
+# against a real file in dist/, from wherever the document happens to live.
+from html import unescape
+
+dist_root = "dist"
+refs: list[tuple[str, str]] = []          # (source file, reference as written)
+
+doc_refs = re.findall(r'<(?:link|script|img)\b[^>]*?\b(?:href|src)="([^"]+)"', built_html)
+for u in doc_refs:
+    refs.append(("dist/index.html", unescape(u)))
+for css_path in glob.glob("dist/assets/*.css"):
+    for u in re.findall(r"url\(([^)]+)\)", open(css_path, encoding="utf-8").read()):
+        refs.append((css_path, u.strip("'\"")))
+
+local = [
+    (src, u) for src, u in refs
+    if not u.startswith(("http://", "https://", "data:", "#", "mailto:", "//"))
+]
+broken = []
+absolute = []
+for src, u in local:
+    if u.startswith("/"):
+        absolute.append(f"{src}: {u}")
+        continue
+    target = os.path.normpath(os.path.join(os.path.dirname(src), u))
+    if not os.path.isfile(target):
+        broken.append(f"{src}: {u} -> {target}")
+
+cname = open("dist/CNAME", encoding="utf-8").read().strip() if os.path.exists("dist/CNAME") else ""
+site_config = open("site.config.mjs", encoding="utf-8").read()
+cfg_host = re.search(r"hostname:\s*'([^']+)'", site_config)
+cfg_host = cfg_host.group(1) if cfg_host else ""
+workflow = ".github/workflows/deploy.yml"
+wf = open(workflow, encoding="utf-8").read() if os.path.exists(workflow) else ""
+
+deploy_checks = {
+    "no absolute local paths (subpath-safe)": not absolute,
+    "every local reference resolves in dist/": not broken,
+    "CNAME shipped": cname != "",
+    "CNAME matches site.config": cname == cfg_host,
+    "canonical link is absolute": bool(
+        re.search(r'<link rel="canonical" href="https://[^/]+/"', built_html)
+    ),
+    "canonical matches og:url": re.search(
+        r'<link rel="canonical" href="([^"]+)"', built_html
+    ).group(1) == re.search(r'og:url" content="([^"]+)"', built_html).group(1)
+    if 'rel="canonical"' in built_html else False,
+    ".nojekyll present": os.path.exists("dist/.nojekyll"),
+    "deploy workflow exists": bool(wf),
+    "workflow deploys dist/": "path: dist" in wf,
+    "workflow runs the audit": "audit.py" in wf,
+    "workflow requests pages+id-token": "pages: write" in wf and "id-token: write" in wf,
+    "single deploy at a time": "concurrency:" in wf,
+    "no credentials in the repo": not re.search(
+        r"ghp_|github_pat_", wf + site_config
+    ),
+    "base path shared by both builds": "BASE_PATH" in open(
+        "scripts/render.mjs", encoding="utf-8"
+    ).read() and "BASE_PATH" in open("vite.config.ts", encoding="utf-8").read(),
+}
+for name, ok in deploy_checks.items():
+    if not ok:
+        failures.append(f"deploy: {name}")
+    print(f"  {'OK  ' if ok else 'MISS'}  {name}")
+for a in absolute:
+    print(f"        absolute: {a}")
+for b in broken:
+    print(f"        broken:   {b}")
+print(f"  {len(local)} local references checked, cname={cname or '(none)'}")
+if absolute or broken:
+    failures.append("deploy: unresolved references")
+
 print("\n10) ASSET BUDGET")
 total = 0
 for f in sorted(glob.glob("dist/**/*", recursive=True)):

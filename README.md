@@ -14,14 +14,13 @@ npm run preview    # проверить продакшен-сборку
 npm run verify     # build + аудит копипаста/ссылок/a11y/тем/шрифтов/pre-render
 ```
 
-### Перед публикацией задайте домен
+Домен `evgeniykolesnikov.ru` прописан по умолчанию в `site.config.mjs`. Он
+попадает в `canonical`, `og:url`, `robots.txt` и `sitemap.xml`. Если сайт
+переедет, переопределите:
 
 ```bash
-SITE_URL=https://ваш-домен.ru npm run build
+SITE_URL=https://другой-домен.ru npm run build
 ```
-
-Домен попадёт в `og:url`, `robots.txt` и `sitemap.xml`. Без этой переменной
-сборка предупредит, что в этих трёх местах остался `https://example.com`.
 
 ### Вспомогательные команды
 
@@ -75,7 +74,10 @@ public/assets/
   og-image.jpg                   ← превью 1200x630, 73 КБ
   fonts/*.woff2                  ← 7 файлов, 154 КБ, локальные
 og/og.html                       ← исходник превью-картинки (в сборку не попадает)
-site.config.mjs                  ← SITE_URL + метаданные для og/robots/sitemap
+public/CNAME                     ← домен для GitHub Pages
+public/.nojekyll                 ← отключить Jekyll-обработку при выкладке
+site.config.mjs                  ← SITE_URL, BASE_PATH, CNAME, метаданные
+.github/workflows/deploy.yml     ← build + аудит + публикация в Pages
 scripts/
   render.mjs                     ← SSR-рендер
   postbuild.mjs                  ← pre-render + мета + robots + sitemap
@@ -84,6 +86,47 @@ scripts/
   entry-server.tsx               ← SSR-точка входа
   audit.py                       ← аудит всего собранного
 ```
+
+## Публикация
+
+Деплой настроен на **GitHub Pages** через `.github/workflows/deploy.yml`:
+push в `main` → `npm ci` → `npm run build` → `python3 scripts/audit.py` →
+выкладка `dist/`. Аудит в пайплайне не декоративный: если текст, ссылки,
+контраст или пути разъедутся, деплой упадёт до загрузки файлов.
+
+### Почему относительные пути
+
+`base` в Vite — `"./"`, а не `"/"`. Сайт тогда одинаково работает в корне
+домена и в подпути `https://<login>.github.io/<repo>/`, а имя репозитория
+перестаёт быть частью конфигурации. Цена — ручной контроль: аудит проверяет,
+что в `dist/index.html` и в скомпилированном CSS **нет ни одной локальной
+ссылки с ведущим слэшем** и что каждая ссылка реально существует в `dist/`.
+
+Из этого следует правило: путь к файлу из `public/` пишется в TSX как
+`assets/файл` (относительно документа), а не `/assets/файл`. Импорт ассета
+тоже не подходит — SSR-билд и клиентский расходятся по абсолютности URL, и
+пререндер начинает ссылаться на файл, которого по его пути нет.
+
+Абсолютные URL, которые относительными быть не могут (`canonical`, `og:image`,
+`sitemap`), генерируются из `SITE_URL` в `scripts/postbuild.mjs`.
+
+### DNS на reg.ru
+
+После первого успешного деплоя — в панели DNS:
+
+| Тип | Имя | Значение |
+|---|---|---|
+| A | `@` | `185.199.108.153` |
+| A | `@` | `185.199.109.153` |
+| A | `@` | `185.199.110.153` |
+| A | `@` | `185.199.111.153` |
+| CNAME | `www` | `<login>.github.io` |
+
+Сертификат Let's Encrypt GitHub выпустит сам, когда DNS увидит. В настройках
+репозитория: **Settings → Pages → Source: GitHub Actions**, **Enforce HTTPS: on**.
+
+Порядок важен: сначала DNS, потом включать HTTPS — иначе проверка владения
+доменом не пройдёт.
 
 ## Шрифты
 

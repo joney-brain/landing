@@ -18,7 +18,9 @@
       property="og:description"
       content="Создаю контент для бизнеса: от посадочных страниц и email-рассылок до бренд-медиа и IT-блогов. Упаковываю опыт экспертов в ясный, структурированный текст."
     />
-    <meta property="og:image" content="/assets/portrait-hero.webp" />
+    <!-- Relative fallback; scripts/postbuild.mjs rewrites this to an absolute URL
+         with width/height/alt once the build knows the origin. -->
+    <meta property="og:image" content="./assets/og-image.jpg" />
 
     <link
       rel="icon"
@@ -32,6 +34,15 @@
       type="font/woff2"
       crossorigin
     />
+    <!-- LCP image. Vite rewrites the absolute public path to the deploy base. -->
+    <link
+      rel="preload"
+      href="/assets/portrait-hero.webp"
+      as="image"
+      type="image/webp"
+      fetchpriority="high"
+    />
+
     <link
       rel="preload"
       href="/assets/fonts/spectral-cyrillic-600.woff2"

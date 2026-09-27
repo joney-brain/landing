@@ -10,7 +10,7 @@
 import { readFileSync, writeFileSync, existsSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { SITE_URL, IS_PLACEHOLDER, site } from '../site.config.mjs'
+import { SITE_URL, IS_DEFAULT, site } from '../site.config.mjs'
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const dist = path.join(root, 'dist')
@@ -40,6 +40,7 @@ html = html.replace(ROOT_DIV, `<div id="root">${markup}</div>`)
 // ---------------------------------------------------------------- 2. meta
 const ogImage = `${SITE_URL}${site.ogImage}`
 const tags = [
+  `<link rel="canonical" href="${SITE_URL}/" />`,
   `<meta property="og:url" content="${SITE_URL}/" />`,
   `<meta property="og:image" content="${ogImage}" />`,
   `<meta property="og:image:width" content="${site.ogImageWidth}" />`,
@@ -54,11 +55,17 @@ const tags = [
 
 // Drop anything the template already declared, then append in one block.
 for (const t of tags) {
-  const key = t.match(/(property|name)="([^"]+)"/)[2]
-  html = html.replace(
-    new RegExp(`\\s*<meta (?:property|name)="${key}"[^>]*>`, 'g'),
-    '',
-  )
+  const meta = t.match(/(?:property|name)="([^"]+)"/)
+  if (meta) {
+    html = html.replace(
+      new RegExp(`\\s*<meta (?:property|name)="${meta[1]}"[^>]*>`, 'g'),
+      '',
+    )
+  }
+  const link = t.match(/rel="([^"]+)"/)
+  if (link) {
+    html = html.replace(new RegExp(`\\s*<link rel="${link[1]}"[^>]*>`, 'g'), '')
+  }
 }
 html = html.replace('</head>', `    ${tags.join('\n    ')}\n  </head>`)
 
@@ -109,9 +116,9 @@ console.log(`meta        : og:image -> ${ogImage}`)
 console.log(`robots.txt  : written`)
 console.log(`sitemap.xml : written`)
 
-if (IS_PLACEHOLDER) {
-  console.warn('')
-  console.warn('  ! SITE_URL is not set — og:url, robots.txt and sitemap.xml point at')
-  console.warn('    https://example.com. Rebuild with SITE_URL=https://<your-domain>')
-  console.warn('    once the domain is registered.')
+if (IS_DEFAULT) {
+  console.warn(
+    '  SITE_URL is not set, so the default origin is used. ' +
+      'Set it if the site moves: SITE_URL=https://<domain> npm run build',
+  )
 }

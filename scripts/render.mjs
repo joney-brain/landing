@@ -7,12 +7,16 @@ import path from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { mkdirSync, writeFileSync, rmSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
+import { BASE_PATH } from '../site.config.mjs'
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const outDir = '.build'
 
 await build({
   root,
+  // Must match the client build in vite.config.ts, or the pre-rendered markup
+  // ships asset URLs the client build never produced.
+  base: BASE_PATH,
   logLevel: 'error',
   plugins: [react()],
   resolve: { alias: { '@': path.resolve(root, 'src') } },
