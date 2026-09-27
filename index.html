@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Евгений Колесников — редактор, контент-стратег, руководитель проектов</title>
+    <meta
+      name="description"
+      content="Создаю контент для бизнеса: от посадочных страниц и email-рассылок до бренд-медиа и IT-блогов. Упаковываю опыт экспертов в ясный, структурированный текст."
+    />
+    <meta name="theme-color" content="#f9f7f3" />
+    <meta name="color-scheme" content="light dark" />
+
+    <meta property="og:type" content="website" />
+    <meta property="og:locale" content="ru_RU" />
+    <meta property="og:title" content="Евгений Колесников — редактор, контент-стратег, руководитель проектов" />
+    <meta
+      property="og:description"
+      content="Создаю контент для бизнеса: от посадочных страниц и email-рассылок до бренд-медиа и IT-блогов. Упаковываю опыт экспертов в ясный, структурированный текст."
+    />
+    <meta property="og:image" content="/assets/portrait-hero.webp" />
+
+    <link
+      rel="icon"
+      href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' fill='%23b8331a'/><text x='16' y='23' font-family='Georgia,serif' font-size='21' fill='%23f8f6f2' text-anchor='middle'>Е</text></svg>"
+    />
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Onest:wght@200..800&family=Spectral:ital,wght@0,400;0,500;0,600;0,700;1,400;1,600&display=swap"
+    />
+
+    <script>
+      // Resolve the theme before first paint: stored preference wins,
+      // otherwise follow the OS. Must stay in sync with src/hooks/useTheme.ts.
+      ;(function () {
+        document.documentElement.classList.add('js')
+        try {
+          var stored = localStorage.getItem('theme')
+          var resolved =
+            stored === 'dark' || stored === 'light'
+              ? stored
+              : matchMedia('(prefers-color-scheme: dark)').matches
+                ? 'dark'
+                : 'light'
+          document.documentElement.dataset.theme = resolved
+          var meta = document.querySelector('meta[name="theme-color"]')
+          if (meta) meta.content = resolved === 'dark' ? '#1b1613' : '#f9f7f3'
+        } catch (e) {
+          document.documentElement.dataset.theme = 'light'
+        }
+      })()
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

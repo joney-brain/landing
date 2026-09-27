@@ -1,0 +1,359 @@
+@import 'tailwindcss';
+
+/* ================================================================== *
+ *  Design tokens — "Полоса набора" (Setting Rules)
+ *  Editorial Style (primary) + Swiss grid discipline (modifier).
+ *  Warm paper base, near-black warm ink, one proofreader's-vermilion accent.
+ *
+ *  Theming works in two layers:
+ *    --p-*   palette primitives, redefined per theme
+ *    --*     semantic layer, mapped from the primitives exactly once
+ *  Because the mapping holds an unresolved var(), redefining a primitive
+ *  under [data-theme] re-resolves every consumer — no duplication, and
+ *  components only ever reference the semantic names.
+ * ================================================================== */
+
+:root {
+  /* ---- Light palette ------------------------------------------- */
+  --p-page: oklch(0.977 0.006 85);
+  --p-sunk: oklch(0.957 0.008 82);
+  --p-card: oklch(0.992 0.004 86);
+  --p-ink: oklch(0.19 0.012 60);
+  --p-ink-70: oklch(0.352 0.013 63);
+  --p-muted: oklch(0.452 0.014 66);
+  --p-rule: oklch(0.878 0.008 80);
+  --p-accent: oklch(0.552 0.184 31);
+  --p-accent-ink: oklch(0.468 0.176 30);
+  --p-plate: oklch(0.163 0.011 55);
+  --p-plate-card: oklch(0.213 0.011 56);
+  --p-plate-rule: oklch(0.318 0.011 58);
+  --p-plate-fg: oklch(0.968 0.007 84);
+  --p-plate-muted: oklch(0.712 0.013 72);
+  --p-plate-accent: oklch(0.667 0.176 34);
+  --p-shadow: 40 30 20;
+
+  color-scheme: light;
+}
+
+/* ---- Dark palette ------------------------------------------------ *
+ *  Not an inversion. Surfaces are warm charcoal rather than blue-black;
+ *  elevation reads as a LIGHTER surface; hairlines lighten instead of
+ *  darkening; the accent lifts in lightness to hold its contrast ratio.
+ *  The closing plate goes one step deeper so the page still ends on contrast.
+ * ------------------------------------------------------------------ */
+:root[data-theme='dark'] {
+  --p-page: oklch(0.205 0.01 63);
+  --p-sunk: oklch(0.243 0.011 62);
+  --p-card: oklch(0.258 0.011 62);
+  --p-ink: oklch(0.945 0.008 84);
+  --p-ink-70: oklch(0.8 0.011 76);
+  --p-muted: oklch(0.688 0.012 70);
+  --p-rule: oklch(0.33 0.011 62);
+  --p-accent: oklch(0.678 0.17 36);
+  --p-accent-ink: oklch(0.74 0.152 40);
+  --p-plate: oklch(0.152 0.01 58);
+  --p-plate-card: oklch(0.212 0.011 57);
+  --p-plate-rule: oklch(0.31 0.011 58);
+  --p-plate-fg: oklch(0.958 0.008 84);
+  --p-plate-muted: oklch(0.7 0.013 70);
+  --p-plate-accent: oklch(0.69 0.168 38);
+  --p-shadow: 0 0 0;
+
+  color-scheme: dark;
+}
+
+:root {
+  /* ---- Semantic layer (mapped once) ----------------------------- */
+  --background: var(--p-page);
+  --foreground: var(--p-ink);
+  --muted: var(--p-sunk);
+  --muted-foreground: var(--p-muted);
+  --card: var(--p-card);
+  --card-foreground: var(--p-ink);
+  --primary: var(--p-ink);
+  --primary-foreground: var(--p-page);
+  --accent: var(--p-accent);
+  --accent-foreground: var(--p-page);
+  --border: var(--p-rule);
+  --input: var(--p-rule);
+  --ring: var(--p-accent);
+  --shadow-color: var(--p-shadow);
+}
+
+@theme inline {
+  --font-sans: 'Onest', ui-sans-serif, system-ui, sans-serif;
+  --font-display: 'Spectral', ui-serif, Georgia, serif;
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-vermilion: var(--p-accent);
+  --color-vermilion-ink: var(--p-accent-ink);
+  --color-ink-70: var(--p-ink-70);
+
+  --shadow-plate: 0 1px 2px rgb(var(--shadow-color) / 0.05);
+  --shadow-card: 0 1px 2px rgb(var(--shadow-color) / 0.05), 0 4px 16px -6px rgb(var(--shadow-color) / 0.07);
+  --shadow-lift: 0 2px 4px rgb(var(--shadow-color) / 0.05), 0 16px 36px -14px rgb(var(--shadow-color) / 0.16);
+
+  --radius-xl: 0.875rem;
+  --radius-2xl: 1.125rem;
+  --radius-3xl: 1.5rem;
+}
+
+@layer base {
+  * {
+    border-color: var(--color-border);
+  }
+
+  html {
+    scroll-behavior: smooth;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+    font-family: var(--font-sans);
+    font-weight: 400;
+    font-size: 1rem;
+    line-height: 1.7;
+    font-feature-settings: 'kern', 'liga';
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  /* Anchor targets clear the sticky masthead. */
+  section[id],
+  footer[id] {
+    scroll-margin-top: 5.5rem;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-ring);
+    outline-offset: 3px;
+    border-radius: 2px;
+  }
+
+  ::selection {
+    background-color: var(--color-accent);
+    color: var(--p-page);
+  }
+
+  h1,
+  h2,
+  h3 {
+    font-family: var(--font-display);
+    font-weight: 600;
+    text-wrap: balance;
+  }
+
+  p {
+    text-wrap: pretty;
+  }
+}
+
+@layer components {
+  /* ---- Layout -------------------------------------------------- */
+  .shell {
+    width: 100%;
+    max-width: 84rem;
+    margin-inline: auto;
+    padding-inline: 1.25rem;
+  }
+
+  @media (min-width: 48rem) {
+    .shell {
+      padding-inline: 2.5rem;
+    }
+  }
+
+  @media (min-width: 80rem) {
+    .shell {
+      padding-inline: 3.5rem;
+    }
+  }
+
+  /* ---- Editorial type roles ------------------------------------ */
+  .eyebrow {
+    font-size: 0.75rem;
+    font-weight: 500;
+    line-height: 1.4;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--p-accent-ink);
+  }
+
+  .display-name {
+    font-family: var(--font-display);
+    font-weight: 600;
+    line-height: 0.88;
+    letter-spacing: -0.03em;
+  }
+
+  .section-title {
+    font-family: var(--font-display);
+    font-weight: 500;
+    line-height: 1.02;
+    letter-spacing: -0.022em;
+  }
+
+  .figure {
+    font-family: var(--font-display);
+    font-weight: 600;
+    line-height: 0.94;
+    letter-spacing: -0.03em;
+    font-variant-numeric: lining-nums tabular-nums;
+  }
+
+  .lead {
+    font-weight: 300;
+    line-height: 1.62;
+    letter-spacing: -0.006em;
+  }
+
+  .measure {
+    max-width: 62ch;
+  }
+
+  .measure-tight {
+    max-width: 46ch;
+  }
+
+  /* ---- Dark plate (closing section) ---------------------------- *
+   * Re-points the semantic layer at the plate primitives of the
+   * current theme, so border-border / text-muted-foreground keep
+   * working and stay legible in both themes.                        */
+  .plate-ink {
+    --background: var(--p-plate);
+    --foreground: var(--p-plate-fg);
+    --muted: var(--p-plate-card);
+    --muted-foreground: var(--p-plate-muted);
+    --card: var(--p-plate-card);
+    --card-foreground: var(--p-plate-fg);
+    --primary: var(--p-plate-fg);
+    --primary-foreground: var(--p-plate);
+    --accent: var(--p-plate-accent);
+    --accent-foreground: var(--p-plate);
+    --border: var(--p-plate-rule);
+    --ring: var(--p-plate-accent);
+  }
+
+  /* ---- Reveal on scroll --------------------------------------- */
+  .js [data-reveal] {
+    opacity: 0;
+    transform: translate3d(0, 1.15rem, 0);
+    transition:
+      opacity 0.72s cubic-bezier(0.16, 1, 0.3, 1),
+      transform 0.72s cubic-bezier(0.16, 1, 0.3, 1);
+    transition-delay: var(--reveal-delay, 0ms);
+    will-change: opacity, transform;
+  }
+
+  .js [data-reveal='shown'] {
+    opacity: 1;
+    transform: none;
+    will-change: auto;
+  }
+
+  /* Rules that draw themselves in — used once, never looping. */
+  .js [data-rule] {
+    transform: scaleX(0);
+    transform-origin: left center;
+    transition: transform 1s cubic-bezier(0.16, 1, 0.3, 1);
+    transition-delay: var(--reveal-delay, 0ms);
+  }
+
+  .js [data-rule='shown'] {
+    transform: scaleX(1);
+  }
+
+  /* ---- Card ------------------------------------------------------ *
+   * One hover treatment for every card on the page. The accent is a
+   * border, not an absolutely positioned bar: a border follows
+   * `border-radius` exactly, so the line traces the rounded contour
+   * instead of colliding with the corner clipping.                     */
+  .card {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-2xl);
+    background-color: var(--color-card);
+    box-shadow: var(--shadow-plate);
+    transition:
+      border-color 0.3s cubic-bezier(0.16, 1, 0.3, 1),
+      box-shadow 0.3s cubic-bezier(0.16, 1, 0.3, 1),
+      background-color 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .card:hover,
+  .card:focus-visible {
+    border-color: var(--color-accent);
+    box-shadow: var(--shadow-lift);
+  }
+
+  .card:focus-visible {
+    outline: 2px solid var(--color-ring);
+    outline-offset: 3px;
+  }
+
+  .skip-link {
+    position: fixed;
+    inset-inline-start: 1rem;
+    inset-block-start: 1rem;
+    z-index: 60;
+    transform: translateY(-200%);
+    background-color: var(--p-ink);
+    color: var(--p-page);
+    padding: 0.625rem 1rem;
+    border-radius: 0.5rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    transition: transform 0.2s ease;
+  }
+
+  .skip-link:focus-visible {
+    transform: translateY(0);
+  }
+}
+
+/* Cross-fade only while the theme is being swapped, so hover and
+   reveal transitions are never interrupted. */
+:root.theme-switching body,
+:root.theme-switching body * {
+  transition:
+    background-color 260ms ease,
+    border-color 260ms ease,
+    color 260ms ease,
+    fill 260ms ease !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  .js [data-reveal],
+  .js [data-rule] {
+    opacity: 1 !important;
+    transform: none !important;
+    transition: none !important;
+  }
+
+  :root.theme-switching body,
+  :root.theme-switching body * {
+    transition: none !important;
+  }
+}
